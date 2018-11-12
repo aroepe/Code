@@ -20,7 +20,7 @@ def oneDplot(tree, name, distribution, bins, xMin, xMax, fiducial, cuts):
     return h
 
 def oneDplotAttr():
-    return " tree <TTree>, name <str>, distribution <str>, bins <int/array>, xMin <float/int>, xMax <float/int>, fiducial <bool>, cuts <str> (set to 1 if there are no cuts). returns h <TObject>"
+    return " tree <TTree>, name <str>, distribution <str>, bins <int/array>, xMin <float/int>, xMax <float/int>, fiducial <bool>, cuts <str> (set to 1 if there are no cuts). returns h <TH1>"
 
 def twoDplot(tree, name, distribution, xBins, xMax, xMin, yBins, yMin, yMax, fiducial, cuts):
     if (name.find('data')!=-1 or not fiducial):
@@ -31,7 +31,7 @@ def twoDplot(tree, name, distribution, xBins, xMax, xMin, yBins, yMin, yMax, fid
     return h
 
 def twoDplotAttr():
-    return " tree <TTree>, name <str>, distribution <str>, xBins <int/array>, xMin <float/int>, xMax <float/int>, yBins <int/array>, yMin <float/int>, yMax <float/int>, fiducial <bool>, cuts <str> (set to 1 if there are no cuts), returns h <TObject>"
+    return " tree <TTree>, name <str>, distribution <str>, xBins <int/array>, xMin <float/int>, xMax <float/int>, yBins <int/array>, yMin <float/int>, yMax <float/int>, fiducial <bool>, cuts <str> (set to 1 if there are no cuts), returns h <TH2>"
 
 def integral(histList,dimensions):
     for hist in histList:
@@ -42,7 +42,7 @@ def integral(histList,dimensions):
         hist.Draw()
 
 def integralAttr():
-    return "histList list of <TObject>, dimensions <int>"
+    return "histList list of <TH1/TH2>, dimensions <int>"
 
 def maxMin(histList,staticMax,staticMin):
     maximum=0
@@ -55,7 +55,7 @@ def maxMin(histList,staticMax,staticMin):
         hist.SetMinimum(staticMin)
 
 def maxMinAttr():
-    return "histList list of <TObject>, staticMax <float/int> (set to -999 for auto calculation of maximum), staticMin <float/int>"
+    return "histList list of <TH1/TH2>, staticMax <float/int> (set to -999 for auto calculation of maximum), staticMin <float/int>"
 
 def profile(hist,name,fit,color):
     hist.Draw("colz")
@@ -65,7 +65,7 @@ def profile(hist,name,fit,color):
     name.Fit(fit)
 
 def profileAttr():
-    return "hist <TObject>, name <str>, fit <str>, color <TColor name>"
+    return "hist <TH1>, name <str>, fit <str>, color <TColor name>"
 
 def logBins(nBins,xMin,xMax,yMin,yMax):
     binEdgesX=[]
@@ -86,3 +86,52 @@ def logBins(nBins,xMin,xMax,yMin,yMax):
 
 def logBinsAttr():
     return "nBins <int>, xMin <float/int>, xMax <float/int>, yMin <float/int>, yMax <float/int>. returns [arx <array><float>,ary <array><float>]"
+
+def optimizeOneD(signal1,signal2,data,target):
+    signal1.Scale(1./signal1.Integral(0,signal1.GetNbinsX()+1))
+    signal2.Scale(1./signal2.Integral(0,signal2.GetNbinsX()+1))
+    data.Scale(1./data.Integral(0,data.GetNbinsX()+1))
+
+    nBins=signal1.GetNbinsX()+1
+
+    maxX=0
+
+    maximum=0
+    for i in range(1,nBins):
+        fom=(signal1.Integral(0,i)+signal2.Integral(0,i))/max(0.00000000001,data.Integral(0,i))
+        if fom>maximum and (data.Integral(0,i))/data.Integral() > target:
+            maximum=fom
+            maxX=i
+
+    print "signal1 "+str(signal1.Integral(0,maxX)),maxX
+    print "signal2 "+str(signal2.Integral(0,maxX))
+    print "data "+str(data.Integral(0,maxX))
+
+def optimizeOneDAttr():
+    return "signal1 <TH1>, signal2 <TH1>, data <TH1>, target <float>"
+
+def optimizeTwoD(signal1,signal2,data,target):
+    signal1.Scale(1./signal1.Integral(0,signal1.GetNbinsX()+1,0,signal1.GetNbinsY()+1))
+    signal2.Scale(1./signal2.Integral(0,signal2.GetNbinsX()+1,0,signal2.GetNbinsY()+1))
+    data.Scale(1./data.Integral(0,data.GetNbinsX()+1,0,data.GetNbinsY()+1))
+
+    nBinsX=signal1.GetNbinsX()+1
+    nBinsY=signal1.GetNbinsY()+1
+
+    maxX=0
+    maxY=0
+
+    maximum=0
+    for i in range(1,nBinsX):
+        fom=(signal1.Integral(0,i,0,nBinsY)+signal1.Integral(0,nBinsX,0,nBinsY)+signal2.Integral(0,i,0,nBinsY)+signal2.Integral(0,nBinsX,0,nBinsY)-signal1.Integral(0,i,0,nBinsY)-signal2.Integral(0,i,0,nBinsY))/max(0.00000000001,data.Integral(0,i,0,nBinsY)+data.Integral(0,nBinsX,0,nBinsY)-data.Integral(0,i,0,nBinsY))
+        if fom>maximum and (data.Integral(0,i,0,nBinsY)+data.Integral(0,nBinsX,0,nBinsY)-data.Integral(0,i,0,nBinsY))/data.Integral() > target:
+            maximum=fom
+            maxX=i
+            maxY=nBinsY
+
+    print "signal1 "+str(signal1.Integral(0,maxX,0,nBinsY)+signal1.Integral(0,nBinsX,0,maxY)-signal1.Integral(0,maxX,0,maxY)),signal1.Integral(0,maxX,0,nBinsY),signal1.Integral(0,nBinsX,0,maxY),maxX,maxY
+    print "signal2 "+str(signal2.Integral(0,maxX,0,nBinsY)+signal2.Integral(0,nBinsX,0,maxY)-signal2.Integral(0,maxX,0,maxY)),signal2.Integral(0,maxX,0,nBinsY),signal2.Integral(0,nBinsX,0,maxY)
+    print "data "+str(data.Integral(0,maxX,0,nBinsY)+data.Integral(0,nBinsX,0,maxY)-data.Integral(0,maxX,0,maxY)),data.Integral(0,maxX,0,nBinsY),data.Integral(0,nBinsX,0,maxY)
+
+def optimizeTwoDAttr():
+    return "signal1 <TH2>, signal2 <TH2>, data <TH2>, target <float>"

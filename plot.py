@@ -24,9 +24,9 @@ def oneDplotAttr():
 
 def twoDplot(tree, name, distribution, xBins, xMax, xMin, yBins, yMin, yMax, fiducial, cuts):
     if (name.find('data')!=-1 or not fiducial):
-        t.Draw("%s>>%s(%s,%s,%s,%s,%s,%s)"%(distribution,name,xBins,xMin,xMax,yBins,yMin,yMax),"(%s)"%cuts)
+        tree.Draw("%s>>%s(%s,%s,%s,%s,%s,%s)"%(distribution,name,xBins,xMin,xMax,yBins,yMin,yMax),"(%s)"%cuts)
     elif fiducial:
-        t.Draw("%s>>%s(%s,%s,%s,%s,%s,%s)"%(distribution,name,xBins,xMin,xMax,yBins,yMin,yMax),"mcEventWeight*((Sum$(LLP_R_coord>4)>0) && (Sum$(LLP_R_coord<300)>0) && (Sum$(abs(LLP_Eta)<2.1)>0) && (Sum$(abs(LLP_Z_coord)<800)>0))*(%s)"%cuts)
+        tree.Draw("%s>>%s(%s,%s,%s,%s,%s,%s)"%(distribution,name,xBins,xMin,xMax,yBins,yMin,yMax),"mcEventWeight*((Sum$(LLP_R_coord>4)>0) && (Sum$(LLP_R_coord<300)>0) && (Sum$(abs(LLP_Eta)<2.1)>0) && (Sum$(abs(LLP_Z_coord)<800)>0))*(%s)"%cuts)
     h=gDirectory.Get(name).Clone(name)
     return h
 
@@ -110,6 +110,20 @@ def optimizeOneD(signal1,signal2,data,target):
 def optimizeOneDAttr():
     return "signal1 <TH1>, signal2 <TH1>, data <TH1>, target <float>"
 
+def oneDefficiency(signal1,signal2,data,cut):
+   signal1.Scale(1./signal1.Integral(0,signal1.GetNbinsX()+1))
+   signal2.Scale(1./signal2.Integral(0,signal2.GetNbinsX()+1))
+   data.Scale(1./data.Integral(0,data.GetNbinsX()+1))
+   cutBin=int(signal1.GetNbinsX()*cut)
+   print cutBin
+   print "signal efficiencies"
+   print "signal1 "+str(signal1.Integral(0,cutBin)),cut
+   print "signal2 "+str(signal2.Integral(0,cutBin))
+   print "data "+str(data.Integral(0,cutBin))
+
+def oneDefficiencyAttr():
+    return "signal1 <TH1>, signal2 <TH1>, data <TH1>, cut <float>"
+
 def optimizeTwoD(signal1,signal2,data,target):
     signal1.Scale(1./signal1.Integral(0,signal1.GetNbinsX()+1,0,signal1.GetNbinsY()+1))
     signal2.Scale(1./signal2.Integral(0,signal2.GetNbinsX()+1,0,signal2.GetNbinsY()+1))
@@ -123,15 +137,34 @@ def optimizeTwoD(signal1,signal2,data,target):
 
     maximum=0
     for i in range(1,nBinsX):
-        fom=(signal1.Integral(0,i,0,nBinsY)+signal1.Integral(0,nBinsX,0,nBinsY)+signal2.Integral(0,i,0,nBinsY)+signal2.Integral(0,nBinsX,0,nBinsY)-signal1.Integral(0,i,0,nBinsY)-signal2.Integral(0,i,0,nBinsY))/max(0.00000000001,data.Integral(0,i,0,nBinsY)+data.Integral(0,nBinsX,0,nBinsY)-data.Integral(0,i,0,nBinsY))
-        if fom>maximum and (data.Integral(0,i,0,nBinsY)+data.Integral(0,nBinsX,0,nBinsY)-data.Integral(0,i,0,nBinsY))/data.Integral() > target:
-            maximum=fom
-            maxX=i
-            maxY=nBinsY
+        for j in range(1,nBinsY):
+            fom=(signal1.Integral(0,i,0,nBinsY)+signal1.Integral(0,nBinsX,0,j)+signal2.Integral(0,i,0,nBinsY)+signal2.Integral(0,nBinsX,0,j)-signal1.Integral(0,i,0,j)-signal2.Integral(0,i,0,j))/max(0.00000000001,data.Integral(0,i,0,nBinsY)+data.Integral(0,nBinsX,0,j)-data.Integral(0,i,0,j))
+            if fom>maximum and (data.Integral(0,i,0,nBinsY)+data.Integral(0,nBinsX,0,j)-data.Integral(0,i,0,j))/data.Integral() > target:
+                maximum=fom
+                maxX=i
+                maxY=j
 
     print "signal1 "+str(signal1.Integral(0,maxX,0,nBinsY)+signal1.Integral(0,nBinsX,0,maxY)-signal1.Integral(0,maxX,0,maxY)),signal1.Integral(0,maxX,0,nBinsY),signal1.Integral(0,nBinsX,0,maxY),maxX,maxY
     print "signal2 "+str(signal2.Integral(0,maxX,0,nBinsY)+signal2.Integral(0,nBinsX,0,maxY)-signal2.Integral(0,maxX,0,maxY)),signal2.Integral(0,maxX,0,nBinsY),signal2.Integral(0,nBinsX,0,maxY)
     print "data "+str(data.Integral(0,maxX,0,nBinsY)+data.Integral(0,nBinsX,0,maxY)-data.Integral(0,maxX,0,maxY)),data.Integral(0,maxX,0,nBinsY),data.Integral(0,nBinsX,0,maxY)
+    print signal1.GetXaxis().GetBinLowEdge(maxX)+signal1.GetXaxis().GetBinWidth(maxX),signal1.GetYaxis().GetBinLowEdge(maxY)+signal1.GetYaxis().GetBinWidth(maxY)
 
 def optimizeTwoDAttr():
     return "signal1 <TH2>, signal2 <TH2>, data <TH2>, target <float>"
+
+def twoDefficiency(signal1,signal2,data,cutX,cutY):
+    signal1.Scale(1./signal1.Integral(0,signal1.GetNbinsX()+1,0,signal1.GetNbinsY()+1))
+    signal2.Scale(1./signal2.Integral(0,signal2.GetNbinsX()+1,0,signal2.GetNbinsY()+1))
+    data.Scale(1./data.Integral(0,data.GetNbinsX()+1,0,data.GetNbinsY()+1))
+    nBinsX=signal1.GetNbinsX()+1
+    nBinsY=signal1.GetNbinsY()+1
+    cutXbin=int((nBinsX-1)*cutX)
+    cutYbin=int((nBinsY-1)*cutY)
+    print cutXbin,cutYbin
+    print "signal efficiencies"
+    print "signal1 "+str(signal1.Integral(0,cutXbin,0,nBinsY)+signal1.Integral(0,nBinsX,0,cutYbin)-signal1.Integral(0,cutXbin,0,cutYbin)),signal1.Integral(0,cutXbin,0,nBinsY),signal1.Integral(0,nBinsX,0,cutYbin),cutX,cutY
+    print "signal2 "+str(signal2.Integral(0,cutXbin,0,nBinsY)+signal2.Integral(0,nBinsX,0,cutYbin)-signal2.Integral(0,cutXbin,0,cutYbin)),signal2.Integral(0,cutXbin,0,nBinsY),signal2.Integral(0,nBinsX,0,cutYbin)
+    print "data "+str(data.Integral(0,cutXbin,0,nBinsY)+data.Integral(0,nBinsX,0,cutYbin)-data.Integral(0,cutXbin,0,cutYbin)),data.Integral(0,cutXbin,0,nBinsY),data.Integral(0,nBinsX,0,cutYbin)
+
+def twoDefficiencyAttr():
+    return "signal1 <TH1>, signal2 <TH1>, data <TH1>, cutX <float>, cutY <float>"
